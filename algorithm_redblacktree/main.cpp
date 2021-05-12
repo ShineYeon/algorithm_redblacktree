@@ -52,7 +52,8 @@ public:
         r = rr;
         parent = pp;
         depth = 0;
-        p->mr.push(medicalRecord(sick, expense));
+        medicalRecord mR = medicalRecord(sick, expense);
+        p->mr.push(mR);
     }
     node(){}
     
@@ -96,6 +97,7 @@ public:
                             nowNode->l = newNode;
                             newNode->b = red;
                             newNode->parent = nowNode;
+                            break;
                         }
                         else
                             nowNode = nowNode->l;
@@ -106,6 +108,7 @@ public:
                             nowNode->r = newNode;
                             newNode->b = red;
                             newNode->parent = nowNode;
+                            break;
                         }
                         else
                             nowNode = nowNode->r;
@@ -151,6 +154,10 @@ public:
                     }
                     
                 }
+                else{
+                    z->parent->b = black;
+                    z->parent->parent->b = red;
+                }
                 
             }
             
@@ -181,6 +188,10 @@ public:
                         z->parent->l->b = red;
                         
                     }
+                }
+                else{
+                    z->parent->b = black;
+                    z->parent->parent->b = black;
                 }
             }
         }
