@@ -61,12 +61,18 @@ public:
 
 class redBlackTree{
     node* root;
+    node* leafNode;
     int treeSize;
     
 public:
     redBlackTree(){
+        leafNode = new node;
         treeSize = 0;
-        root = nullptr;
+        leafNode->b = black;
+        leafNode->l = nullptr;
+        leafNode->r = nullptr;
+        leafNode->parent=nullptr;
+        root = leafNode;
     }
     
     node* getRoot(){
@@ -76,207 +82,166 @@ public:
     // 환자 추가
     node* insert(int n, string name, string pN, int ax, int ay, string sick, int expense){
         
-        if(search(n) != nullptr)
+        //
+        node* x = this->root;   // 삽입할 곳을 찾기 위함
+        node* y = nullptr;  // 삽입할 곳의 부모노드
+        node* z = search(n);
+        
+        if(z != nullptr)    // 해당 환자가 이미 존재할 경우 nullptr반환
             return nullptr;
         
         
-        else{
-            if(root == nullptr){    //root가 null이면 트리에 아무것도 없으므로 블랙으로 생성
-                root = new node(black, n, name, pN, ax, ay, sick, expense, nullptr, nullptr, nullptr);
-                root->depth = 0;
-                return root;
+        else{   // 존재하지 않을 경우 삽입 연산 수행
+            z = new node(red, n, name, pN, ax, ay, sick, expense, leafNode, leafNode, nullptr);
+            while(x!=leafNode){
+                y = x;
                 
+                if(x->p->patientNumber < n)
+                    x = x->r;
+                else
+                    x = x->l;
             }
             
-            else{
-                auto nowNode = getRoot();
-                node* newNode = new node(red, n, name, pN, ax, ay, sick, expense, nullptr, nullptr, nullptr);
-                while(nowNode != nullptr){
-                    if(nowNode->p->patientNumber > n){
-                        if(nowNode->l==nullptr){
-                            nowNode->l = newNode;
-                            newNode->b = red;
-                            newNode->parent = nowNode;
-                            break;
-                        }
-                        else
-                            nowNode = nowNode->l;
-                        
-                    }
-                    else{   //nowNode->p->patientNumber < n
-                        if(nowNode->r==nullptr){
-                            nowNode->r = newNode;
-                            newNode->b = red;
-                            newNode->parent = nowNode;
-                            break;
-                        }
-                        else
-                            nowNode = nowNode->r;
-                    }
-                }
-                fixup(newNode);
-                newNode->depth = newNode->parent->depth + 1;
-                return newNode;
+            z->parent = y;
+            
+            if(y == nullptr)
+                root = z;
+            else if(z->p->patientNumber > y->p->patientNumber)
+                y->r = z;
+            else
+                y->l=z;
+            
+            if(z->parent == nullptr){
+                z->b = black;
+                if(z == root)
+                    z->depth = 0;
+                else
+                    z->depth = (z->parent->depth) + 1;
+                return z;
             }
+            
+            if(z->parent->parent == nullptr){
+                if(z == root)
+                    z->depth = 0;
+                else
+                    z->depth = (z->parent->depth) + 1;
+                return z;
+            }
+            fixup(z);
+            if(z == root)
+                z->depth = 0;
+            else
+                z->depth = (z->parent->depth) + 1;
+            
+            return z;
+            
+            
         }
+        
         
     }
     
+    
     void fixup(node* z){
-        while(z->parent->b == red){
+        while(z!=root && z->parent->b == red){
             node* grand = z->parent->parent;
-            node* uncle;
-            if(grand->l == z->parent){  // Left에서 규칙위반
-                if(grand->r){
-                    uncle = grand->r;
-                    if(uncle->b == red){    //recoloring
-                        z->parent->b = black;
-                        grand->b = red;
-                        uncle->b = black;
-                        if(grand->p->patientNumber!=root->p->patientNumber)
-                            z = grand;
-                        else
-                            break;
-                    }
-                    else if(z == grand->l->r){  //LR에서 규칙위반
-                        leftRotation(z->parent);
-                        rightRotation(grand);
-                        grand->b = black;
-                        grand->l->b = red;
-                        grand->r->b = red;
-                        
-                    }
-                    else{   //LL에서 규칙 위반
-                        rightRotation(z->parent);
-                        z->b = red;
-                        z->parent->b = black;
-                        z->parent->r->b = red;
-                    }
-                    
-                }
-                else{
-                    z->parent->b = black;
-                    z->parent->parent->b = red;
-                }
-                
+            node* uncle = (z->parent == grand->l) ? grand->r : grand->l;
+            bool side = (z->parent == grand->l) ? true : false;
+            //부모가 할아버지의 왼쪽자식이면 1, 오른쪽 자식이면 0
+            
+            if (uncle && uncle->b == red) {
+                z->parent->b = black;
+                uncle->b = black;
+                grand->b = red;
+                z = grand;
             }
             
-            else{   //R에서 규칙 위반
-                if(grand->l){
-                    uncle = grand->l;
-                    if(uncle->b == red){    //recoloring
-                        z->parent->b = black;
-                        grand->b = red;
-                        uncle->b = black;
-                        if(grand->p->patientNumber!=root->p->patientNumber)
-                            z = grand;
-                        else
-                            break;
-                    }
-                    else if(z == grand->r->r){  //RR에서 규칙위반
-                        leftRotation(z->parent);
-                        z->b = red;
-                        z->parent->b = black;
-                        z->parent->l->b = red;
-                        
-                    }
-                    else{   //RL에서 규칙 위반
-                        rightRotation(z->parent);
-                        leftRotation(z);
-                        z->b = red;
-                        z->parent->b = black;
-                        z->parent->l->b = red;
-                        
-                    }
+            else {
+                /*case 2-1*/
+                if (z == (side ? z->parent->r : z->parent->l)) {
+                    z = z->parent;
+                    side ? leftRotation(z) : rightRotation(z);
                 }
-                else{
-                    z->parent->b = black;
-                    z->parent->parent->b = black;
-                }
+                /*case 2-2*/
+                z->parent->b = black;
+                grand->b = red;
+                side ? rightRotation(grand) : leftRotation(grand);
             }
         }
+        
         root->b = black;
     }
     
-    void leftRotation(node* v){
-        node* nw_node = new node();
-        if(v->r->l)
-            nw_node->r = v->r->l;
-        nw_node->l = v->l;
-        nw_node->p->patientNumber = v->p->patientNumber;
-        nw_node->b = v->b;
-        v->p = v->r->p;
+    void leftRotation(node* v) {
+        node* w;
         
-        v->l = nw_node;
-        if(nw_node->l)
-            nw_node->l->parent = nw_node;
-        if(nw_node->r)
-            nw_node->r->parent = nw_node;
-        nw_node->parent = v;
+        w = v->r;
+        v->r = w->l;
+        if (w->l != leafNode) {
+            w->l->parent = v;
+        }
+        w->parent = v->parent;
         
-        if(v->r->r)
-            v->r = v->r->r;
-        else
-            v->r = nullptr;
-        
-        if(v->r)
-            v->r->parent = v;
+        if (!v->parent) {
+            root = w;
+        } else if (v == v->parent->l) {
+            v->parent->l = w;
+        } else {
+            v->parent->r = w;
+        }
+        v->parent = w;
+        v->l = v;
     }
     
-    void rightRotation(node* v){
-        node* newNode = new node();
-        if(v->l->r)
-            newNode->l = v->l->r;
-        newNode->r = v->r;
-        newNode->p = v->p;
-        newNode->b = v->b;
+    
+    void rightRotation(node* v) {
+        node* w;
         
-        v->p = v->l->p;
-        v->b = v->l->b;
+        w = v->l;
+        v->l = w->r;
+        if (w->r != leafNode) {
+            w->r->parent = v;
+        }
+        w->parent = v->parent;
         
-        v->r = newNode;
-        if(newNode->l)
-            newNode->l->parent = newNode;
-        if(newNode->r)
-            newNode->r->parent = newNode;
-        newNode->parent = v;
-        
-        if(v->l->l)
-            v->l = v->l->l;
-        else
-            v->l = nullptr;
-        
-        if(v->l)
-            v->l->parent = v;
+        if (!v->parent) {
+            root = w;
+        } else if (v == v->parent->l) {
+            v->parent->l = w;
+        } else {
+            v->parent->r = w;
+        }
+        v->parent = w;
+        w->r = v;
     }
+    
+    
     
     node* search(int patient_number){
-        node* nowNode = root;
-        while(nowNode!=nullptr){
-            if(patient_number == nowNode->p->patientNumber){
-                return nowNode;
-            }
-            else if(patient_number < nowNode->p->patientNumber){
-                nowNode = nowNode->l;
-                continue;
-            }
-            else{
-                nowNode = nowNode->r;
-                continue;
-            }
+        
+        node* x = root;
+        if(x==leafNode)
+            return nullptr;
+        while(x!=leafNode){
+            if(patient_number == x->p->patientNumber)
+                return x;
+            else if(patient_number<x->p->patientNumber)
+                x=x->l;
+            else
+                x=x->r;
         }
-        return nullptr; // 못찾았을 경우
+        return nullptr;
     }
     
     int epidemic(string d, node* nowNode, int cnt){
         if(nowNode == nullptr)
             return cnt;
-        if(nowNode->p->mr.top().sickness == d)
+        if(nowNode->p->mr.top().sickness == d)  //
             cnt++;
         if(nowNode->l)
-            epidemic(d, nowNode->l, cnt);
+            epidemic(d, nowNode->l, cnt);   //
         if(nowNode->r)
-            epidemic(d, nowNode->r, cnt);
+            epidemic(d, nowNode->r, cnt);   //
         return cnt;
         
     }
@@ -300,6 +265,7 @@ int main(int argc, const char * argv[]) {
     while(T--){
         char type; // I:신규가입, F:검색, A:추가진료, E:유행병 조사
         cin>>type;
+        
         if(type == 'I'){
             int k;
             string n;
@@ -344,3 +310,4 @@ int main(int argc, const char * argv[]) {
         
     }
 }
+
