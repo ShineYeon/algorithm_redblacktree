@@ -30,11 +30,14 @@ public:
     string phoneNumber;
     pair<int, int> address;
     stack<medicalRecord> mr;
-    patient(int n, string name, string pN, int ax, int ay){
+    patient(int n, string name, string pN, int ax, int ay, string d, int c){
         this->patientNumber = n;
+        this->name = name;
         this->phoneNumber = pN;
         this->address.first = ax;
         this->address.second = ay;
+        medicalRecord mrIni = medicalRecord(d, c);
+        mr.push(mrIni);
     }
     patient();
 };
@@ -42,18 +45,16 @@ public:
 class node{ //red black tree를 위한 노드 클래스
 public:
     int b;  // black or red
-    int depth;
-    node *l, *r, *parent;
-    patient* p;
+    int depth;  // 깊이
+    node *l, *r, *parent;   // 왼쪽자식, 오른쪽 자식, 부모
+    patient* p; // 환자 정보
     node(int bb, int nn, string name, string pN, int ax, int ay, string sick, int expense, class node* ll, class node* rr, class node* pp){
         b=bb;
-        p = new patient(nn, name, pN, ax, ay);
+        p = new patient(nn, name, pN, ax, ay, sick, expense);
         l = ll;
         r = rr;
         parent = pp;
         depth = 0;
-        medicalRecord mR = medicalRecord(sick, expense);
-        p->mr.push(mR);
     }
     node(){}
     
@@ -62,16 +63,14 @@ public:
 class redBlackTree{
     node* root;
     node* leafNode;
-    int treeSize;
     
 public:
     redBlackTree(){
-        leafNode = new node;
-        treeSize = 0;
+        leafNode = new node();
         leafNode->b = black;
         leafNode->l = nullptr;
         leafNode->r = nullptr;
-        leafNode->parent=nullptr;
+        leafNode->parent = nullptr;
         root = leafNode;
     }
     
@@ -83,11 +82,11 @@ public:
     node* insert(int n, string name, string pN, int ax, int ay, string sick, int expense){
         
         //
-        node* x = this->root;   // 삽입할 곳을 찾기 위함
+        node* x = getRoot();   // 삽입할 곳을 찾기 위함
         node* y = nullptr;  // 삽입할 곳의 부모노드
-        node* z = search(n);
+        node* z = search(n);    //tree에 해당 key가 이미 존재하는지 리턴
         
-        if(z != nullptr)    // 해당 환자가 이미 존재할 경우 nullptr반환
+        if(z != nullptr && z != leafNode)    // 해당 환자가 이미 존재할 경우 nullptr반환
             return nullptr;
         
         
@@ -109,32 +108,22 @@ public:
             else if(z->p->patientNumber > y->p->patientNumber)
                 y->r = z;
             else
-                y->l=z;
+                y->l = z;
             
+            //z가 root
             if(z->parent == nullptr){
-                z->b = black;
-                if(z == root)
-                    z->depth = 0;
-                else
-                    z->depth = (z->parent->depth) + 1;
+                depthFix(z);
                 return z;
             }
             
+            //z의 부모가 root
             if(z->parent->parent == nullptr){
-                if(z == root)
-                    z->depth = 0;
-                else
-                    z->depth = (z->parent->depth) + 1;
+                depthFix(z);
                 return z;
             }
             fixup(z);
-            if(z == root)
-                z->depth = 0;
-            else
-                z->depth = (z->parent->depth) + 1;
-            
+            depthFix(root);
             return z;
-            
             
         }
         
@@ -149,6 +138,7 @@ public:
             bool side = (z->parent == grand->l) ? true : false;
             //부모가 할아버지의 왼쪽자식이면 1, 오른쪽 자식이면 0
             
+            //uncle이 있는데 uncle이 red이면 recoloring 수행
             if (uncle && uncle->b == red) {
                 z->parent->b = black;
                 uncle->b = black;
@@ -156,92 +146,98 @@ public:
                 z = grand;
             }
             
+            //uncle 없거나 uncle이 black일 경우 restructuring 수행
             else {
-                /*case 2-1*/
+                // LR이거나 RL일 경우 : 회전 두번, 색상변경 해야함
                 if (z == (side ? z->parent->r : z->parent->l)) {
                     z = z->parent;
                     side ? leftRotation(z) : rightRotation(z);
                 }
-                /*case 2-2*/
+                // LL이거나 RR일 경우 : 회전 한번, 색상변경 해야함
+                
                 z->parent->b = black;
                 grand->b = red;
                 side ? rightRotation(grand) : leftRotation(grand);
+                
             }
         }
-        
         root->b = black;
     }
     
     void leftRotation(node* v) {
-        node* w;
+        node* w = new node();
         
         w = v->r;
         v->r = w->l;
-        if (w->l != leafNode) {
-            w->l->parent = v;
-        }
+        w->l->parent = v;
         w->parent = v->parent;
         
-        if (!v->parent) {
+        if(v->parent == nullptr)
             root = w;
-        } else if (v == v->parent->l) {
+        else if(v == v->parent->l)
             v->parent->l = w;
-        } else {
+        else
             v->parent->r = w;
-        }
+        
         v->parent = w;
-        v->l = v;
+        w->l = v;
+        
+
     }
     
     
     void rightRotation(node* v) {
-        node* w;
+        node* w = new node();
         
         w = v->l;
         v->l = w->r;
-        if (w->r != leafNode) {
-            w->r->parent = v;
-        }
+        w->r->parent = v;
         w->parent = v->parent;
         
-        if (!v->parent) {
+        if(v->parent == nullptr)
             root = w;
-        } else if (v == v->parent->l) {
+        else if(v == v->parent->l)
             v->parent->l = w;
-        } else {
+        else
             v->parent->r = w;
-        }
+        
         v->parent = w;
         w->r = v;
     }
     
-    
-    
     node* search(int patient_number){
-        
         node* x = root;
-        if(x==leafNode)
-            return nullptr;
-        while(x!=leafNode){
-            if(patient_number == x->p->patientNumber)
-                return x;
-            else if(patient_number<x->p->patientNumber)
-                x=x->l;
-            else
-                x=x->r;
+        node* parent = nullptr;
+        
+        while(x != nullptr && x != leafNode && x->p->patientNumber != patient_number){
+            parent = x;
+            x = (patient_number < parent->p->patientNumber) ? parent->l : parent->r;
         }
-        return nullptr;
+        if(x == leafNode || x == nullptr)
+            return nullptr;
+        return x;
+    }
+    
+    void depthFix(node* z){
+        if(z==leafNode)
+            return;
+        if(z==root)
+            z->depth=0;
+        else if(z!=leafNode)
+            z->depth = z->parent->depth + 1;
+        depthFix(z->l);
+        depthFix(z->r);
     }
     
     int epidemic(string d, node* nowNode, int cnt){
-        if(nowNode == nullptr)
+        if(nowNode == leafNode)
             return cnt;
         if(nowNode->p->mr.top().sickness == d)  //
             cnt++;
-        if(nowNode->l)
-            epidemic(d, nowNode->l, cnt);   //
-        if(nowNode->r)
-            epidemic(d, nowNode->r, cnt);   //
+        if(nowNode->l != leafNode)
+            cnt = epidemic(d, nowNode->l, cnt);   //
+        if(nowNode->r != leafNode)
+            cnt = epidemic(d, nowNode->r, cnt);   //
         return cnt;
         
     }
@@ -251,7 +247,8 @@ public:
         if(find==nullptr)
             return 0;
         else{
-            find->p->mr.push(medicalRecord(d, c));
+            medicalRecord mr = medicalRecord(d, c);
+            find->p->mr.push(mr);
             return find->depth;
         }
     }
@@ -262,18 +259,18 @@ int main(int argc, const char * argv[]) {
     int T;
     cin>>T;
     redBlackTree* rbt = new redBlackTree();
-    while(T--){
+    for(int i = 0; i < T; i++){
         char type; // I:신규가입, F:검색, A:추가진료, E:유행병 조사
         cin>>type;
         
         if(type == 'I'){
-            int k;
-            string n;
-            string h;
-            int ax, ay;
-            string di;
-            int c;
-            cin>>k>>n>>h>>ax>>ay>>di>>c;
+            int k;  // 환자 번호
+            string n;   // 환자 이름
+            string h;   // 휴대폰 번호
+            int ax, ay; // 주소
+            string di;  // 병명
+            int c;  // 진료비
+            cin >> k >> n >> h >> ax >> ay >> di >> c;
             node* returnValue = rbt->insert(k, n, h, ax, ay, di, c);
             if(returnValue == nullptr){
                 cout<<rbt->search(k)->depth<<' '<<0<<endl;
@@ -296,18 +293,17 @@ int main(int argc, const char * argv[]) {
             string di;
             int c;
             cin>>k>>di>>c;
-            if(rbt->search(k)==nullptr)
+            if(rbt->search(k) == nullptr)
                 cout<<"Not found"<<endl;
-            else
+            else{
                 cout<<rbt->addDisease(k, di, c)<<endl;
+            }
         }
         else if(type == 'E'){
             string di;
             cin>>di;
-            cout<<rbt->epidemic(di, rbt->getRoot(), 0);
+            cout<<rbt->epidemic(di, rbt->getRoot(), 0)<<endl;
         }
-        
-        
     }
 }
 
